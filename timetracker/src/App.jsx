@@ -94,16 +94,20 @@ const App = () => {
       hour12: false,
     });
 
-    const userComment = prompt("¿Qué comentario deseas guardar?");
-    
+    let userComment = prompt("¿Qué comentario deseas guardar?");
+    while (userComment && (/[^a-zA-Z\s]/.test(userComment) || userComment.length > 40)) {
+      alert("El comentario solo puede contener letras y espacios, y debe tener un máximo de 40 caracteres.");
+      userComment = prompt("¿Qué comentario deseas guardar?");
+    }
+
     const date = new Date().toLocaleDateString();
-    
+
     setRecords([
       ...records,
       {
         date,
         startTime,
-        endTime: endTimeValue, // Guardar la hora de finalización
+        endTime: endTimeValue,
         inactiveTime,
         activeTime,
         activity,
@@ -157,15 +161,21 @@ const App = () => {
               <button
                 onClick={handlePause}
                 className="bg-yellow-500 text-white py-2 px-4 rounded-lg hover:bg-yellow-600"
+                disabled={!isTracking}
               >
                 {isPaused ? "Reanudar" : "Pausar"}
               </button>
               <button
                 onClick={handleStop}
                 className="bg-red-500 text-white py-2 px-4 rounded-lg hover:bg-red-600"
+                disabled={!isTracking}
               >
                 Detener
               </button>
+              <button>Guardar</button>
+              <button>Importar</button>
+              <button>Graficas</button>
+              <button>Convertir a pdf</button>
             </div>
           </div>
         </div>
@@ -206,7 +216,7 @@ const App = () => {
                   <td className="border px-4 py-2">{record.inactiveTime}s</td>
                   <td className="border px-4 py-2">{record.activeTime}s</td>
                   <td className="border px-4 py-2">{record.activity}</td>
-                  <td className="border px-4 py-2">{record.comment}</td>
+                  <td className="border px-4 py-2 whitespace-pre-line">{record.comment}</td>
                 </tr>
               ))}
             </tbody>
