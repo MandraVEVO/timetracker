@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Velustro } from "uvcanvas";
+import { saveRecordsToFile } from "./save";
+import { importRecordsFromFile } from "./import";
 
 const App = () => {
   const [mexicoTime, setMexicoTime] = useState(null);
@@ -122,6 +124,21 @@ const App = () => {
     setStartTime(null);
   };
 
+  const handleSave = () => {
+    if (records.length === 0) {
+      alert("No hay registros capturados");
+      return;
+    }
+    const fileName = prompt("¿Cómo deseas nombrar el archivo JSON?");
+    if (fileName) {
+      saveRecordsToFile(records, fileName);
+    }
+  };
+
+  const handleImport = () => {
+    importRecordsFromFile(setRecords);
+  };
+
   return (
     <div className="relative min-h-screen bg-gray-900 text-white">
       <Velustro className="fixed top-0 left-0 w-full h-full z-0" />
@@ -172,8 +189,18 @@ const App = () => {
               >
                 Detener
               </button>
-              <button>Guardar</button>
-              <button>Importar</button>
+              <button
+                onClick={handleSave}
+                className="bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600"
+              >
+                Guardar
+              </button>
+              <button
+                onClick={handleImport}
+                className="bg-purple-500 text-white py-2 px-4 rounded-lg hover:bg-purple-600"
+              >
+                Importar
+              </button>
               <button>Graficas</button>
               <button>Convertir a pdf</button>
             </div>
