@@ -2,6 +2,10 @@ import React, { useState, useEffect } from "react";
 import { Velustro } from "uvcanvas";
 import { saveRecordsToFile } from "./save";
 import { importRecordsFromFile } from "./import";
+import Charts from "./charts";
+import Modal from "react-modal";
+
+Modal.setAppElement("#root");
 
 const App = () => {
   const [mexicoTime, setMexicoTime] = useState(null);
@@ -16,6 +20,8 @@ const App = () => {
   const [records, setRecords] = useState([]);
   const [isTracking, setIsTracking] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const [hasRecovered, setHasRecovered] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const activities = [
     "Analizar",
@@ -67,6 +73,25 @@ const App = () => {
     return () => clearInterval(timer);
   }, [isActive, isTracking, isPaused]);
 
+  useEffect(() => {
+    const savedRecords = localStorage.getItem("records");
+    if (savedRecords && !hasRecovered) {
+      setRecords(JSON.parse(savedRecords));
+      alert("Mensajes recuperados");
+      setHasRecovered(true);
+    }
+
+    const handleBeforeUnload = () => {
+      localStorage.setItem("records", JSON.stringify(records));
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [records, hasRecovered]);
+
   const handleStart = () => {
     setShowComboBox(true);
   };
@@ -104,7 +129,7 @@ const App = () => {
 
     const date = new Date().toLocaleDateString();
 
-    setRecords([
+    const newRecords = [
       ...records,
       {
         date,
@@ -115,7 +140,10 @@ const App = () => {
         activity,
         comment: userComment || "",
       },
-    ]);
+    ];
+
+    setRecords(newRecords);
+    localStorage.setItem("records", JSON.stringify(newRecords));
 
     // Reiniciar estados
     setActiveTime(0);
@@ -137,6 +165,21 @@ const App = () => {
 
   const handleImport = () => {
     importRecordsFromFile(setRecords);
+  };
+
+  const handleClear = () => {
+    if (window.confirm("¿Estás seguro de que deseas borrar todos los registros?")) {
+      setRecords([]);
+      localStorage.removeItem("records");
+    }
+  };
+
+  const openModal = () => {
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
   };
 
   return (
@@ -201,8 +244,19 @@ const App = () => {
               >
                 Importar
               </button>
-              <button>Graficas</button>
+              <button
+                onClick={openModal}
+                className="bg-teal-500 text-white py-2 px-4 rounded-lg hover:bg-teal-600"
+              >
+                Graficas
+              </button>
               <button>Convertir a pdf</button>
+              <button
+                onClick={handleClear}
+                className="bg-red-500 text-white py-2 px-4 rounded-lg hover:bg-red-600"
+              >
+                Borrar Datos
+              </button>
             </div>
           </div>
         </div>
@@ -249,6 +303,17 @@ const App = () => {
             </tbody>
           </table>
         </div>
+
+        <Modal
+          isOpen={isModalOpen}
+          onRequestClose={closeModal}
+          contentLabel="Graficas"
+          className="modal"
+          overlayClassName="overlay"
+        >
+          <button onClick={closeModal} className="close-button">Cerrar</button>
+          <Charts records={records} />
+        </Modal>
       </div>
     </div>
   );
