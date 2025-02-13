@@ -175,6 +175,12 @@ const App = () => {
     setShowCharts(!showCharts);
   };
 
+  const formatTime = (seconds) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}m ${remainingSeconds}s`;
+  };
+
   return (
     <div className="relative min-h-screen bg-gray-900 text-white">
       <Velustro className="fixed top-0 left-0 w-full h-full z-0" />
@@ -257,11 +263,11 @@ const App = () => {
         <div className="w-64 bg-gray-700 bg-opacity-75 p-6 rounded-lg shadow-lg text-center mb-8">
           <h2 className="text-3xl font-bold text-blue-500 mb-4">Timer</h2>
           <div className="text-xl font-semibold mb-4">
-            <span className="text-yellow-400">Tiempo Activo:</span> {activeTime}s
+            <span className="text-yellow-400">Tiempo Activo:</span> {formatTime(activeTime)}
           </div>
           <div className="text-xl font-semibold mb-4">
             <span className="text-yellow-400">Tiempo Inactivo:</span>{" "}
-            {inactiveTime}s
+            {formatTime(inactiveTime)}
           </div>
         </div>
 
@@ -287,8 +293,8 @@ const App = () => {
                   <td className="border px-4 py-2">{record.date}</td>
                   <td className="border px-4 py-2">{record.startTime}</td>
                   <td className="border px-4 py-2">{record.endTime}</td>
-                  <td className="border px-4 py-2">{record.inactiveTime}s</td>
-                  <td className="border px-4 py-2">{record.activeTime}s</td>
+                  <td className="border px-4 py-2">{formatTime(record.inactiveTime)}</td>
+                  <td className="border px-4 py-2">{formatTime(record.activeTime)}</td>
                   <td className="border px-4 py-2">{record.activity}</td>
                   <td className="border px-4 py-2 whitespace-pre-line">{record.comment}</td>
                 </tr>
@@ -299,7 +305,7 @@ const App = () => {
 
         {showCharts && (
           <div className="w-full max-w-3xl bg-gray-800 bg-opacity-75 p-4 rounded-lg shadow-lg mt-8">
-            <Charts records={records} />
+            <Charts records={records} formatTime={formatTime} />
           </div>
         )}
       </div>

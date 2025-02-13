@@ -4,7 +4,7 @@ import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Toolti
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
 
-const Charts = ({ records }) => {
+const Charts = ({ records, formatTime }) => {
   const activities = [
     "Analizar",
     "Planificar",
@@ -100,8 +100,8 @@ const Charts = ({ records }) => {
       <Bar data={barData} options={barOptions} />
       <Pie data={pieData} options={pieOptions} />
       <div className="text-center mt-4">
-        <h3>Total de Tiempo Activo: {totalActiveTime}s</h3>
-        <h3>Total de Tiempo Inactivo: {totalInactiveTime}s</h3>
+        <h3>Total de Tiempo Activo: {formatTime(totalActiveTime)}</h3>
+        <h3>Total de Tiempo Inactivo: {formatTime(totalInactiveTime)}</h3>
       </div>
     </div>
   );
