@@ -1,8 +1,8 @@
 import React from 'react';
-import { Bar } from 'react-chartjs-2';
-import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
+import { Bar, Pie } from 'react-chartjs-2';
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement } from 'chart.js';
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
 
 const Charts = ({ records }) => {
   const activities = [
@@ -28,7 +28,16 @@ const Charts = ({ records }) => {
     };
   });
 
-  const data = {
+  const totalActiveTime = activityData.reduce((sum, data) => sum + data.totalActiveTime, 0);
+  const totalInactiveTime = activityData.reduce((sum, data) => sum + data.totalInactiveTime, 0);
+
+  const percentageData = activityData.map(data => ({
+    activity: data.activity,
+    percentageActive: (data.totalActiveTime / totalActiveTime) * 100,
+    percentageInactive: (data.totalInactiveTime / totalInactiveTime) * 100,
+  }));
+
+  const barData = {
     labels: activities,
     datasets: [
       {
@@ -44,7 +53,23 @@ const Charts = ({ records }) => {
     ],
   };
 
-  const options = {
+  const pieData = {
+    labels: activities,
+    datasets: [
+      {
+        label: 'Porcentaje de Tiempo Útil',
+        data: percentageData.map(data => data.percentageActive),
+        backgroundColor: activities.map((_, index) => `rgba(${index * 30}, ${index * 60}, ${index * 90}, 0.6)`),
+      },
+      {
+        label: 'Porcentaje de Tiempo Interrumpido',
+        data: percentageData.map(data => data.percentageInactive),
+        backgroundColor: activities.map((_, index) => `rgba(${index * 90}, ${index * 60}, ${index * 30}, 0.6)`),
+      },
+    ],
+  };
+
+  const barOptions = {
     responsive: true,
     plugins: {
       legend: {
@@ -57,7 +82,29 @@ const Charts = ({ records }) => {
     },
   };
 
-  return <Bar data={data} options={options} />;
+  const pieOptions = {
+    responsive: true,
+    plugins: {
+      legend: {
+        position: 'top',
+      },
+      title: {
+        display: true,
+        text: 'Porcentaje de Tiempo Útil e Interrumpido por Actividad',
+      },
+    },
+  };
+
+  return (
+    <div>
+      <Bar data={barData} options={barOptions} />
+      <Pie data={pieData} options={pieOptions} />
+      <div className="text-center mt-4">
+        <h3>Total de Tiempo Activo: {totalActiveTime}s</h3>
+        <h3>Total de Tiempo Inactivo: {totalInactiveTime}s</h3>
+      </div>
+    </div>
+  );
 };
 
 export default Charts;

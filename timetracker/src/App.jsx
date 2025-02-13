@@ -3,9 +3,6 @@ import { Velustro } from "uvcanvas";
 import { saveRecordsToFile } from "./save";
 import { importRecordsFromFile } from "./import";
 import Charts from "./charts";
-import Modal from "react-modal";
-
-Modal.setAppElement("#root");
 
 const App = () => {
   const [mexicoTime, setMexicoTime] = useState(null);
@@ -21,7 +18,7 @@ const App = () => {
   const [isTracking, setIsTracking] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [hasRecovered, setHasRecovered] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showCharts, setShowCharts] = useState(false);
 
   const activities = [
     "Analizar",
@@ -77,7 +74,7 @@ const App = () => {
     const savedRecords = localStorage.getItem("records");
     if (savedRecords && !hasRecovered) {
       setRecords(JSON.parse(savedRecords));
-      alert("Mensajes recuperados");
+      alert("Información recuperada de la memoria local");
       setHasRecovered(true);
     }
 
@@ -174,12 +171,8 @@ const App = () => {
     }
   };
 
-  const openModal = () => {
-    setIsModalOpen(true);
-  };
-
-  const closeModal = () => {
-    setIsModalOpen(false);
+  const toggleCharts = () => {
+    setShowCharts(!showCharts);
   };
 
   return (
@@ -245,7 +238,7 @@ const App = () => {
                 Importar
               </button>
               <button
-                onClick={openModal}
+                onClick={toggleCharts}
                 className="bg-teal-500 text-white py-2 px-4 rounded-lg hover:bg-teal-600"
               >
                 Graficas
@@ -304,16 +297,11 @@ const App = () => {
           </table>
         </div>
 
-        <Modal
-          isOpen={isModalOpen}
-          onRequestClose={closeModal}
-          contentLabel="Graficas"
-          className="modal"
-          overlayClassName="overlay"
-        >
-          <button onClick={closeModal} className="close-button">Cerrar</button>
-          <Charts records={records} />
-        </Modal>
+        {showCharts && (
+          <div className="w-full max-w-3xl bg-gray-800 bg-opacity-75 p-4 rounded-lg shadow-lg mt-8">
+            <Charts records={records} />
+          </div>
+        )}
       </div>
     </div>
   );
