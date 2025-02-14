@@ -1,10 +1,16 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Velustro } from "uvcanvas";
 import { saveRecordsToFile } from "./save";
 import { importRecordsFromFile } from "./import";
 import Charts from "./charts";
+import generatePDF from "./pdf";
+import { jsPDF } from "jspdf";
+import "jspdf-autotable";
+import html2canvas from "html2canvas";
+import { Chart } from "chart.js";
 
 const App = () => {
+  
   const [mexicoTime, setMexicoTime] = useState(null);
   const [systemTime, setSystemTime] = useState(null);
   const [activeTime, setActiveTime] = useState(0);
@@ -60,26 +66,73 @@ const App = () => {
 
   useEffect(() => {
     let timer;
+  
     if (isTracking) {
+      clearInterval(timer); // Limpia cualquier intervalo previo
+  
       if (isActive && !isPaused) {
-        timer = setInterval(() => setActiveTime((prev) => prev + 1), 1000);
-      } else {
-        timer = setInterval(() => setInactiveTime((prev) => prev + 1), 1000);
+        timer = setInterval(() => {
+          setActiveTime((prev) => {
+            const newTime = prev + 1;
+            localStorage.setItem("activeTime", newTime);
+            return newTime;
+          });
+        }, 1000);
+      } else if (!isActive && isPaused) {
+        timer = setInterval(() => {
+          setInactiveTime((prev) => {
+            const newTime = prev + 1;
+            localStorage.setItem("inactiveTime", newTime);
+            return newTime;
+          });
+        }, 1000);
       }
     }
-    return () => clearInterval(timer);
+  
+    return () => {
+      clearInterval(timer); // Asegura que el intervalo se limpia antes de crear uno nuevo
+    };
   }, [isActive, isTracking, isPaused]);
+  
+  
+  
+
 
   useEffect(() => {
     const savedRecords = localStorage.getItem("records");
+    const savedActiveTime = localStorage.getItem("activeTime");
+    const savedInactiveTime = localStorage.getItem("inactiveTime");
+    const savedStartTime = localStorage.getItem("startTime");
+    const savedActivity = localStorage.getItem("activity");
+    const savedIsTracking = localStorage.getItem("isTracking") === "true";
+    const savedIsPaused = localStorage.getItem("isPaused") === "true";
+    const savedIsActive = localStorage.getItem("isActive") === "true";
+
     if (savedRecords && !hasRecovered) {
       setRecords(JSON.parse(savedRecords));
       alert("Información recuperada de la memoria local");
       setHasRecovered(true);
     }
 
+    if (savedActiveTime && savedStartTime && savedIsTracking) {
+      setActiveTime(parseInt(savedActiveTime, 10));
+      setInactiveTime(parseInt(savedInactiveTime, 10) || 0); // Asegúrate de que inactiveTime se inicialice correctamente
+      setStartTime(savedStartTime);
+      setActivity(savedActivity || "");
+      setIsTracking(savedIsTracking);
+      setIsPaused(savedIsPaused);
+      setIsActive(savedIsActive);
+    }
+
     const handleBeforeUnload = () => {
       localStorage.setItem("records", JSON.stringify(records));
+      localStorage.setItem("activeTime", activeTime);
+      localStorage.setItem("inactiveTime", inactiveTime);
+      localStorage.setItem("startTime", startTime);
+      localStorage.setItem("activity", activity);
+      localStorage.setItem("isTracking", isTracking);
+      localStorage.setItem("isPaused", isPaused);
+      localStorage.setItem("isActive", isActive);
     };
 
     window.addEventListener("beforeunload", handleBeforeUnload);
@@ -87,7 +140,12 @@ const App = () => {
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
-  }, [records, hasRecovered]);
+  }, [records, hasRecovered, activeTime, inactiveTime, startTime, activity, isTracking, isPaused, isActive]);
+
+  const playAlertSound = () => {
+    const audio = new Audio("/sounds/alert.mp3");
+    audio.play();
+  };
 
   const handleStart = () => {
     setShowComboBox(true);
@@ -95,18 +153,24 @@ const App = () => {
 
   const handleSelectActivity = (event) => {
     setActivity(event.target.value);
-    setStartTime(
-      new Date().toLocaleTimeString("en-US", { hour12: false })
-    );
+    const currentTime = new Date().toLocaleTimeString("en-US", { hour12: false });
+    setStartTime(currentTime);
     setShowComboBox(false);
     setIsActive(true);
     setIsTracking(true);
     setIsPaused(false);
+    localStorage.setItem("startTime", currentTime);
+    localStorage.setItem("isTracking", true);
+    localStorage.setItem("isPaused", false);
+    localStorage.setItem("isActive", true);
+    localStorage.setItem("activity", event.target.value);
   };
 
   const handlePause = () => {
     setIsPaused(!isPaused);
     setIsActive(isPaused);
+    localStorage.setItem("isPaused", !isPaused);
+    localStorage.setItem("isActive", isPaused);
   };
 
   const handleStop = () => {
@@ -147,6 +211,13 @@ const App = () => {
     setInactiveTime(0);
     setActivity("");
     setStartTime(null);
+    localStorage.removeItem("activeTime");
+    localStorage.removeItem("inactiveTime");
+    localStorage.removeItem("startTime");
+    localStorage.removeItem("isTracking");
+    localStorage.removeItem("isPaused");
+    localStorage.removeItem("isActive");
+    localStorage.removeItem("activity");
   };
 
   const handleSave = () => {
@@ -175,11 +246,172 @@ const App = () => {
     setShowCharts(!showCharts);
   };
 
+  const handleGeneratePDF = () => {
+    const fileInput = document.createElement("input");
+    fileInput.type = "file";
+    fileInput.accept = ".json";
+    fileInput.onchange = (event) => {
+      const file = event.target.files[0];
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const jsonContent = JSON.parse(e.target.result);
+        const projectName = file.name.replace(".json", "");
+        generatePDF(projectName, jsonContent);
+      };
+      reader.readAsText(file);
+    };
+    fileInput.click();
+  };
+
   const formatTime = (seconds) => {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
     return `${minutes}m ${remainingSeconds}s`;
   };
+
+  const handleAlert = () => {
+    playAlertSound();
+    setTimeout(() => {
+      alert("Han pasado 30 segundos.");
+      setIsActive(true); // Asegurar que sigue activo después de la alerta
+      setIsPaused(false); // Evitar que entre en pausa
+    }, 500);
+  };
+
+  useEffect(() => {
+    let timer;
+    if (isTracking) {
+      if (isActive && !isPaused) {
+        timer = setInterval(() => {
+          setActiveTime((prev) => {
+            const newTime = prev + 1;
+            if (newTime === 30) {
+              handleAlert(); // Llama a la alerta, pero no pausa el tiempo activo
+            }
+            return newTime;
+          });
+        }, 1000);
+      } else if (!isActive && isPaused) {
+        timer = setInterval(() => {
+          setInactiveTime((prev) => {
+            const newTime = prev + 1;
+            localStorage.setItem("inactiveTime", newTime);
+            return newTime;
+          });
+        }, 1000);
+      }
+    }
+    return () => clearInterval(timer);
+  }, [isActive, isTracking, isPaused]);
+
+  // Función para generar el PDF del proyecto
+  const handleDownload = useCallback(async () => {
+    try {
+      const fileName = prompt("¿Cómo deseas nombrar el archivo PDF?");
+      if (!fileName) {
+        alert("El nombre del archivo es obligatorio.");
+        return;
+      }
+  
+      const startDate = records.length > 0 ? records[0].date : "N/A";
+      const endDate = new Date().toLocaleDateString();
+  
+      const pdf = new jsPDF();
+  
+      pdf.setFontSize(18);
+      pdf.text(`Proyecto: ${fileName}`, 10, 10);
+      pdf.setFontSize(12);
+      pdf.text(`Fecha de Inicio: ${startDate}`, 10, 15);
+      pdf.text(`Fecha de Fin: ${endDate}`, 10, 20);
+  
+      // Configuración para la tabla
+      pdf.autoTable({
+        startY: 30,
+        head: [["Fecha", "Inicio", "Fin", "Interrupción", "Tiempo Activo", "Actividad", "Comentario"]],
+        body: records.map((record) => [
+          record.date,
+          record.startTime,
+          record.endTime,
+          formatTime(record.inactiveTime),
+          formatTime(record.activeTime),
+          record.activity,
+          record.comment,
+        ]),
+        theme: "grid",
+        margin: { bottom: 20 }, // Espacio para evitar cortar datos en la paginación
+        didDrawPage: (data) => {
+          pdf.setFontSize(10);
+          pdf.text(`Página ${pdf.internal.getNumberOfPages()}`, 10, pdf.internal.pageSize.height - 10);
+        },
+      });
+  
+      // Gráfico
+      const actividadesAgregadas = records.reduce((acc, curr) => {
+        const key = curr.activity;
+        if (!acc[key]) acc[key] = { activeTime: 0, inactiveTime: 0 };
+        acc[key].activeTime += curr.activeTime / 60;
+        acc[key].inactiveTime += curr.inactiveTime / 60;
+        return acc;
+      }, {});
+  
+      const canvas = document.createElement("canvas");
+      canvas.width = 400;
+      canvas.height = 200;
+      document.body.appendChild(canvas);
+  
+      const ctx = canvas.getContext("2d");
+      new Chart(ctx, {
+        type: "bar",
+        data: {
+          labels: Object.keys(actividadesAgregadas),
+          datasets: [
+            {
+              label: "Tiempo Activo (min)",
+              data: Object.values(actividadesAgregadas).map((d) => d.activeTime),
+              backgroundColor: "rgba(75, 192, 192, 0.6)",
+            },
+            {
+              label: "Tiempo Inactivo (min)",
+              data: Object.values(actividadesAgregadas).map((d) => d.inactiveTime),
+              backgroundColor: "rgba(255, 99, 132, 0.6)",
+            },
+          ],
+        },
+        options: { responsive: false },
+      });
+  
+      await new Promise((resolve) => setTimeout(resolve, 500));
+  
+      const chartImage = await html2canvas(canvas);
+      const chartImgData = chartImage.toDataURL("image/png");
+  
+      let finalY = pdf.autoTable.previous.finalY + 10;
+      const pageHeight = pdf.internal.pageSize.height;
+  
+      if (finalY + 100 > pageHeight) {
+        pdf.addPage();
+        finalY = 10;
+      }
+  
+      pdf.addImage(chartImgData, "PNG", 10, finalY, 180, (chartImage.height * 180) / chartImage.width);
+  
+      finalY += (chartImage.height * 180) / chartImage.width + 10;
+  
+      if (finalY + 20 > pageHeight) {
+        pdf.addPage();
+        finalY = 10;
+      }
+  
+      pdf.text(`Total tiempo útil: ${formatTime(records.reduce((acc, r) => acc + r.activeTime, 0))}`, 10, finalY);
+      pdf.text(`Total interrupción: ${formatTime(records.reduce((acc, r) => acc + r.inactiveTime, 0))}`, 10, finalY + 10);
+  
+      pdf.save(`${fileName}.pdf`);
+      document.body.removeChild(canvas);
+    } catch (error) {
+      console.error("Error al generar el PDF: ", error);
+    }
+  }, [records]);
+  
 
   return (
     <div className="relative min-h-screen bg-gray-900 text-white">
@@ -209,6 +441,10 @@ const App = () => {
                 ))}
               </select>
             )}
+            <div className="text-2xl font-semibold">
+              <span className="text-yellow-400">Actividad en curso:</span>{" "}
+              {activity || "Ninguna"}
+            </div>
             <div className="flex justify-between space-x-4 mt-4 flex-wrap">
               <button
                 onClick={handleStart}
@@ -249,7 +485,12 @@ const App = () => {
               >
                 Graficas
               </button>
-              <button>Convertir a pdf</button>
+              <button
+                onClick={handleDownload}
+                className="bg-pink-500 text-white py-2 px-4 rounded-lg hover:bg-pink-600"
+              >
+                Convertir a pdf
+              </button>
               <button
                 onClick={handleClear}
                 className="bg-red-500 text-white py-2 px-4 rounded-lg hover:bg-red-600"
@@ -260,7 +501,7 @@ const App = () => {
           </div>
         </div>
 
-        <div className="w-64 bg-gray-700 bg-opacity-75 p-6 rounded-lg shadow-lg text-center mb-8">
+        <div className="w-full max-w-3xl bg-gray-700 bg-opacity-75 p-6 rounded-lg shadow-lg text-center mb-8">
           <h2 className="text-3xl font-bold text-blue-500 mb-4">Timer</h2>
           <div className="text-xl font-semibold mb-4">
             <span className="text-yellow-400">Tiempo Activo:</span> {formatTime(activeTime)}
@@ -271,7 +512,13 @@ const App = () => {
           </div>
         </div>
 
-        <div className="w-full max-w-3xl bg-gray-800 bg-opacity-75 p-4 rounded-lg shadow-lg overflow-x-auto">
+        {showCharts && (
+          <div className="w-full max-w-3xl bg-gray-800 bg-opacity-75 p-4 rounded-lg shadow-lg mb-8">
+            <Charts records={records} formatTime={formatTime} />
+          </div>
+        )}
+
+        <div id="records-table" className="w-full max-w-3xl bg-gray-800 bg-opacity-75 p-4 rounded-lg shadow-lg">
           <h3 className="text-xl font-bold text-green-500 mb-4">
             Registros de Actividad
           </h3>
@@ -302,12 +549,6 @@ const App = () => {
             </tbody>
           </table>
         </div>
-
-        {showCharts && (
-          <div className="w-full max-w-3xl bg-gray-800 bg-opacity-75 p-4 rounded-lg shadow-lg mt-8">
-            <Charts records={records} formatTime={formatTime} />
-          </div>
-        )}
       </div>
     </div>
   );
