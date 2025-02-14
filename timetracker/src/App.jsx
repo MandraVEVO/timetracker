@@ -377,7 +377,20 @@ const App = () => {
             },
           ],
         },
-        options: { responsive: false },
+        options: {
+          responsive: false,
+          plugins: {
+            tooltip: {
+              callbacks: {
+                label: function (context) {
+                  const total = context.dataset.data.reduce((sum, value) => sum + value, 0);
+                  const percentage = ((context.raw / total) * 100).toFixed(2);
+                  return `${context.dataset.label}: ${context.raw} minutos (${percentage}%)`;
+                },
+              },
+            },
+          },
+        },
       });
   
       await new Promise((resolve) => setTimeout(resolve, 500));
@@ -402,8 +415,14 @@ const App = () => {
         finalY = 10;
       }
   
-      pdf.text(`Total tiempo útil: ${formatTime(records.reduce((acc, r) => acc + r.activeTime, 0))}`, 10, finalY);
-      pdf.text(`Total interrupción: ${formatTime(records.reduce((acc, r) => acc + r.inactiveTime, 0))}`, 10, finalY + 10);
+      const totalActiveTime = records.reduce((acc, r) => acc + r.activeTime, 0);
+      const totalInactiveTime = records.reduce((acc, r) => acc + r.inactiveTime, 0);
+      const totalTime = totalActiveTime + totalInactiveTime;
+      const activePercentage = ((totalActiveTime / totalTime) * 100).toFixed(2);
+      const inactivePercentage = ((totalInactiveTime / totalTime) * 100).toFixed(2);
+  
+      pdf.text(`Total tiempo útil: ${formatTime(totalActiveTime)} (${activePercentage}%)`, 10, finalY);
+      pdf.text(`Total interrupción: ${formatTime(totalInactiveTime)} (${inactivePercentage}%)`, 10, finalY + 10);
   
       pdf.save(`${fileName}.pdf`);
       document.body.removeChild(canvas);
